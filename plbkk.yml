@@ -1,0 +1,46 @@
+- name: Build CA with SSL
+  hosts: 192.168.56.101
+  become: yes  # Add this line to run tasks with sudo
+
+  tasks:
+    - name: install OpenSSL
+      package:
+        name: openssl
+        state: present
+
+    - name: Create key directory
+      file:
+        path: /etc/ssl/CA/key
+        state: directory
+
+    - name: Generate Key
+      openssl_privatekey:
+        path: /etc/ssl/CA/key/private_key
+
+    - name: Generate config file
+      copy:
+        dest: /etc/ssl/CA/key/ca.conf
+        content: |
+          [req]
+          default_bits = 2048
+          default_md = sha256
+          prompt = no
+          encrypt_key = no
+          distinguished_name = dn
+          req_extensions = ext
+
+          [dn]
+          CN = Certificate
+
+          [ext]
+          basicConstraints = CA:TRUE,pathlen:0
+
+    - name: make me CA certificate
+      shell: openssl req -new -x509 -days 365 -key /etc/ssl/CA/key/private_key -out /etc/ssl/CA/key/ca.crt -config /etc/ssl/CA/key/ca.conf
+
+    - name: Grab crt
+      fetch:
+        src: /etc/ssl/CA/key/ca.crt
+        dest: ~/HOA_9.1/Certificate.crt
+        flat: yes
+      register: fetch
